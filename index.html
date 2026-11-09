@@ -126,6 +126,17 @@ input[type=time],input[type=date],input[type=number]{font-family:var(--mo);font-
 .sec2{margin-top:14px;height:40px;padding:0 16px;border:1px solid var(--ln);border-radius:var(--r);font-size:13px;font-weight:500}
 .sh3{margin:4px 0 0;font:500 11px var(--mo);letter-spacing:.08em;text-transform:uppercase;color:var(--mu)}
 #thm{margin-bottom:8px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 14px);z-index:50;max-width:min(92vw,420px);padding:12px 16px;border-radius:var(--r);background:var(--ink);color:var(--bg);font:500 13px/1.4 var(--mo);opacity:0;pointer-events:none;transition:opacity .15s}
+.toast.on{opacity:1}
+.ld{position:fixed;top:0;left:0;right:0;height:2px;z-index:60;overflow:hidden;opacity:0;transition:opacity .15s;pointer-events:none}
+.ld.on{opacity:1}
+.ld::after{content:"";position:absolute;top:0;bottom:0;left:0;width:35%;background:var(--ac);animation:ldm 1s linear infinite}
+@keyframes ldm{from{transform:translateX(-100%)}to{transform:translateX(300%)}}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid var(--ln);border-top-color:var(--ac);border-radius:50%;animation:spn .7s linear infinite;vertical-align:-2px;margin-right:8px}
+@keyframes spn{to{transform:rotate(360deg)}}
+.bd{font:500 10px var(--mo);font-style:normal;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--ln);border-radius:var(--r);padding:2px 6px;margin-left:8px;color:var(--mu)}
+.bd.ai,.bd.err{color:var(--ac);border-color:var(--ac)}
+@media(prefers-reduced-motion:reduce){.ld::after,.spin{animation-duration:2.4s}}
 .nm{font:400 12px var(--mo);color:var(--mu);margin-top:12px}
 .pr{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--ln);font-size:14px}
 .pr button{color:var(--mu);font-size:20px;padding:0 6px}
@@ -145,6 +156,8 @@ input[type=time],input[type=date],input[type=number]{font-family:var(--mo);font-
 <p class="note" id="st"></p>
 </main>
 <div class="bar glass"><button class="pill" data-p id="nw">+ Nový úkol</button><button class="rnd" data-p id="in2" aria-label="Přehled">Přehled</button><button class="rnd" data-p id="gr" aria-label="Nastavení">Nastavení</button></div>
+<div class="ld" id="ld"></div>
+<div class="toast" id="tst" role="status"></div>
 <div id="scrim"></div>
 <div id="sheet" class="glass">
 <div id="grab"><i></i><h2 id="sh2"></h2></div>
@@ -179,7 +192,7 @@ input[type=time],input[type=date],input[type=number]{font-family:var(--mo);font-
 <h3 class="sh3" style="margin-top:22px">Upozornění a AI</h3>
 <input class="in" id="tp" placeholder="Název ntfy tématu" autocomplete="off" autocapitalize="off" spellcheck="false">
 <button class="go" data-p id="tps">Uložit téma</button>
-<button class="sec" data-p id="tpt">Poslat test</button><input class="in" id="ky" type="password" placeholder="Gemini API klíč (volitelné)" autocomplete="off"><button class="sec" data-p id="kys">Uložit klíč</button><p class="note" id="ks">Klíč vytvoříš na aistudio.google.com. Uloží se jen v tomto zařízení, v kódu na GitHubu není.</p>
+<button class="sec" data-p id="tpt">Poslat test</button><input class="in" id="ky" type="password" placeholder="Gemini API klíč (volitelné)" autocomplete="off"><button class="sec" data-p id="kys">Uložit klíč</button><button class="sec" data-p id="kyt">Otestovat Gemini klíč</button><p class="note" id="ai0"></p><p class="note" id="ks">Klíč vytvoříš na aistudio.google.com. Uloží se jen v tomto zařízení, v kódu na GitHubu není.</p>
 <button class="sec" data-p id="nt">Upozornění v prohlížeči</button>
 <p class="note">Téma zůstává jen v tomto zařízení, v kódu na GitHubu není. Upozornění z ntfy chodí 15 minut před úkolem i při zavřené appce.</p>
 </div>
@@ -231,12 +244,12 @@ function mins(t){var p=t.split(":");return +p[0]*60+ +p[1]}
 function nowM(){var n=new Date();return n.getHours()*60+n.getMinutes()}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function topic(){try{return localStorage.getItem(TK)||""}catch(e){return ""}}
-function send(msg,at){var tp=topic();if(!tp)return false;
- try{fetch("https://ntfy.sh/"+encodeURIComponent(tp)+"/publish?title="+encodeURIComponent("Plánovač")+"&message="+encodeURIComponent(msg)+(at?"&delay="+at:""),{mode:"no-cors"});return true}catch(e){return false}}
-function schedule(t){if(!topic()||t.s||t.d||t.ad)return;
+function send(msg,at){var tp=topic();if(!tp)return Promise.resolve(false);act(1);
+ return fetch("https://ntfy.sh/"+encodeURIComponent(tp)+"/publish?title="+encodeURIComponent("Plánovač")+"&message="+encodeURIComponent(msg)+(at?"&delay="+at:""),{mode:"no-cors"}).then(function(){act(-1);return true},function(){act(-1);toast("Upozornění na telefon se nepodařilo odeslat. Jsi online?");return false})}
+function schedule(t){if(!topic()||t.s||t.d||t.ad||t.ev)return;
  var now=Math.floor(Date.now()/1000),d=new Date();d.setHours(0,0,0,0);
  var due=Math.floor(d.getTime()/1000)+mins(t.t)*60;if(due<=now)return;
- var at=Math.max(now+15,due-900);if(send((at<due?"Za 15 min: ":"Teď: ")+t.x,at)){t.s=1;save()}}
+ var at=Math.max(now+15,due-900);t.s=1;send((at<due?"Za 15 min: ":"Teď: ")+t.x,at).then(function(ok){if(!ok)t.s=0;save();if(!busy)listRender()})}
 function notify(k,m){if(fired[k])return;fired[k]=1;try{if(window.Notification&&Notification.permission==="granted")new Notification("Plánovač",{body:m})}catch(e){}}
 function sorted(){return S.tasks.slice().sort(function(a,b){return mins(a.t)-mins(b.t)})}
 var ring=new Sp(0,function(v){$("rg").style.strokeDashoffset=144.5*(1-v/100)});
@@ -269,17 +282,17 @@ function hh(m){return pad(Math.floor(m/60))+":"+pad(m%60)}
 function find(id){return S.tasks.concat(S.later).filter(function(x){return x.id===id})[0]}
 function dayItems(i){return i===today?sorted():i>today?S.later.filter(function(l){return l.date===i}).sort(function(a,b){return mins(a.t)-mins(b.t)}):S.hist.filter(function(h){return h.date===i&&h.x}).sort(function(a,b){return a.p-b.p})}
 function det(t,k){var h='<div class="dt2">';
- if(BUSY[t.id])return h+'<p class="mu">Odhaduji…</p></div>';
- h+='<div class="kv"><span>Odhad času</span><b>'+(t.ae?"≈ "+fmt(t.ae):"–")+'</b></div>'+(t.aw?'<div class="mu">'+esc(t.aw)+'</div>':"")+'<div class="kv"><span>'+(t.g?"Nápady na dárek":"Věci s sebou")+'</span></div>';
+ if(BUSY[t.id])return h+'<p class="mu"><span class="spin"></span>'+(BUSY[t.id]==="ai"?"AI přemýšlí…":"Počítám podle pravidel…")+'</p></div>';
+ h+='<div class="kv"><span>Odhad času'+(t.sr?'<i class="bd '+t.sr+'">'+({ai:"Gemini",err:"AI chyba",rules:"Pravidla"})[t.sr]+'</i>':"")+'</span><b>'+(t.ae?"≈ "+fmt(t.ae):"–")+'</b></div>'+(t.aw?'<div class="mu">'+esc(t.aw)+'</div>':"")+'<div class="kv"><span>'+(t.g?"Nápady na dárek":"Věci s sebou")+'</span></div>';
  (t.pk||[]).forEach(function(q,i){h+='<label class="pk"><input type="checkbox" data-pi="'+i+'"'+(q.d?" checked":"")+'><span>'+esc(q.x)+'</span></label>'});
  h+='<div class="pa"><input class="pin" placeholder="Přidat věc" enterkeyhint="done"><button data-p data-a="pa" aria-label="Přidat">+</button></div>';
- if(k==="t"&&!t.d)h+='<button class="sec2" data-p data-a="st">'+(t.st?"Měřím od "+hh(new Date(t.st).getHours()*60+new Date(t.st).getMinutes())+" (klepni pro zrušení)":"Spustit měření času")+'</button>';
+ h+='<button class="sec2" data-p data-a="re">'+(t.g?"Nové nápady":"Přepočítat odhad a seznam")+'</button> ';if(k==="t"&&!t.d)h+='<button class="sec2" data-p data-a="st">'+(t.st?"Měřím od "+hh(new Date(t.st).getHours()*60+new Date(t.st).getMinutes())+" (klepni pro zrušení)":"Spustit měření času")+'</button>';
  return h+'</div>'}
 function listRender(){var L=$("ls"),T=dayItems(sel),k=sel===today?"t":sel>today?"f":"p",n=nowM();
  $("dv").hidden=V==="w";$("hw").hidden=!(V==="d"&&sel===today);
  if(!T.length)L.innerHTML='<div class="emp">'+(k==="p"?"Z tohoto dne nic není uloženo.":"Nic v plánu.")+'</div>';
  else{L.innerHTML=T.map(function(t){var c=CAT[t.c==null?4:t.c],ti=t.ad?"celý den":(t.t||hh(t.p)),late=k==="t"&&!t.d&&mins(ti)<n-15;
-  return'<div class="row'+(t.d?" done":"")+(late?" late":"")+'" data-id="'+(t.id||"")+'" data-k="'+k+'"><div class="bg g">'+(t.d?"Vrátit":"Hotovo")+'</div><div class="bg r">Smazat</div><div class="fg"><button class="ck" data-p data-ck aria-label="Hotovo" style="--c:'+c[1]+'"></button><div class="tb"><div class="tx">'+esc(t.x)+'</div><div class="mt"><span class="t">'+ti+'</span> · '+c[0]+(t.e?" · "+t.e+" min":"")+(t.st&&!t.d?" · běží":"")+'</div></div></div>'+(OPEN[t.id]&&k!=="p"?det(t,k):"")+'</div>'}).join("");
+  return'<div class="row'+(t.d?" done":"")+(late?" late":"")+'" data-id="'+(t.id||"")+'" data-k="'+k+'"><div class="bg g">'+(t.d?"Vrátit":"Hotovo")+'</div><div class="bg r">Smazat</div><div class="fg"><button class="ck" data-p data-ck aria-label="Hotovo" style="--c:'+c[1]+'"></button><div class="tb"><div class="tx">'+esc(t.x)+'</div><div class="mt"><span class="t">'+ti+'</span> · '+c[0]+(t.e?" · "+t.e+" min":"")+(t.st&&!t.d?" · běží":"")+(t.s&&!t.d?" · upozornění":"")+'</div></div></div>'+(OPEN[t.id]&&k!=="p"?det(t,k):"")+'</div>'}).join("");
   if(k!=="p")Array.prototype.forEach.call(L.querySelectorAll(".row"),wire)}
  var d=pd(sel);$("dt").textContent=d.toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"long"});
  var w=d.toLocaleDateString("cs-CZ",{weekday:"long"});$("h1").textContent=sel===today?"Dnes":w.charAt(0).toUpperCase()+w.slice(1);$("nm").textContent=nmLine(sel);cal()}
@@ -313,8 +326,12 @@ function ai(t){var k=key(),h=heur(t);if(!k)return Promise.resolve(h);
  var p=t.g?gp(t):'Jsi asistent v plánovači. Aktivita: "'+t.x+'". Kategorie: '+CAT[t.c==null?4:t.c][0]+'. Plánovaný čas: '+t.t+'. Odhad z pravidel a historie uživatele: '+h.min+' min ('+h.why+'). Odpověz pouze JSON bez dalšího textu: {"min":číslo v minutách,"why":"maximálně 12 slov česky","pack":["maximálně 8 věcí s sebou česky, jen pokud dávají smysl"]}';
  return fetch("https://generativelanguage.googleapis.com/v1beta/models/"+MODEL+":generateContent",{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":k},body:JSON.stringify({contents:[{parts:[{text:p}]}],generationConfig:{responseMimeType:"application/json",maxOutputTokens:400,temperature:.3}})})
  .then(function(r){return r.json()}).then(function(d){if(d.error)throw new Error(d.error.message);var x=JSON.parse(d.candidates[0].content.parts[0].text.replace(/```json|```/g,"").trim());return{min:Math.max(1,Math.round(+x.min)),why:String(x.why||"").slice(0,90),pack:(x.pack||[]).slice(0,8).map(String),ai:1}}).catch(function(e){h.err=e.message;return h})}
-function doEst(id){var t=find(id);if(!t)return;BUSY[id]=1;listRender();ai(t).then(function(r){BUSY[id]=0;t.ae=r.min;t.aw=(r.ai?"AI: ":"")+r.why+(r.err?" (AI se nepovedla: "+r.err+")":"");if(!t.e)t.e=r.min;if(!(t.pk&&t.pk.length)&&r.pack.length)t.pk=r.pack.map(function(x){return{x:x,d:0}});save();listRender()})}
-$("kys").onclick=function(){var v=$("ky").value.trim();try{if(v)localStorage.setItem(KK,v);else localStorage.removeItem(KK)}catch(e){}$("ky").value="";$("ks").textContent=key()?"Klíč je uložený jen v tomto zařízení. AI odhady zapnuty.":"Klíč smazán, odhady jedou podle pravidel a historie."};
+function doEst(id){var t=find(id);if(!t)return;BUSY[id]=key()?"ai":"rules";act(1);listRender();ai(t).then(function(r){BUSY[id]=0;act(-1);t.ae=r.min;t.sr=r.ai?"ai":r.err?"err":"rules";t.aw=r.why+(r.err?" · AI chyba: "+r.err:"");if(!t.e)t.e=r.min;if(r.pack.length)t.pk=(t.pk||[]).filter(function(q){return q.own}).concat(r.pack.map(function(x){return{x:x,d:0}}));save();listRender();toast(r.ai?"Odhad od Gemini hotový.":r.err?"Gemini selhalo, použil jsem pravidla.":null)})}
+function aiStat(){$("ai0").textContent=key()?"Stav AI: Gemini klíč je uložený. Odhady a nápady počítá Gemini.":"Stav AI: bez klíče. Odhady počítají pravidla a tvoje historie."}
+$("kyt").onclick=function(){var k=key(),b=$("kyt");if(!k){toast("Nejdřív ulož Gemini klíč.");return}b.textContent="Testuji…";act(1);var t0=Date.now();
+ fetch("https://generativelanguage.googleapis.com/v1beta/models/"+MODEL+":generateContent",{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":k},body:JSON.stringify({contents:[{parts:[{text:"Odpověz jedním slovem: OK"}]}],generationConfig:{maxOutputTokens:20}})})
+ .then(function(r){return r.json()}).then(function(d){if(d.error)throw new Error(d.error.message);toast("Gemini funguje (odpověď za "+(Date.now()-t0)+" ms).")}).catch(function(e){toast("Gemini nefunguje: "+e.message)}).then(function(){act(-1);b.textContent="Otestovat Gemini klíč"})};
+$("kys").onclick=function(){var v=$("ky").value.trim();try{if(v)localStorage.setItem(KK,v);else localStorage.removeItem(KK)}catch(e){}$("ky").value="";aiStat();$("ks").textContent=key()?"Klíč je uložený jen v tomto zařízení. AI odhady zapnuty.":"Klíč smazán, odhady jedou podle pravidel a historie."};
 $("ls").addEventListener("keydown",function(e){if(e.key==="Enter"&&e.target.classList.contains("pin")){var b=e.target.parentNode.querySelector("[data-a=pa]");if(b)b.click()}});
 function wire(row){var fg=row.querySelector(".fg"),g=row.querySelector(".g"),r=row.querySelector(".r"),id=row.getAttribute("data-id");
  var sp=new Sp(0,function(v){fg.style.transform="translate3d("+v+"px,0,0)";g.style.opacity=v>0?1:0;r.style.opacity=v<0?1:0}),W=row.offsetWidth||360;
@@ -327,8 +344,9 @@ function wire(row){var fg=row.querySelector(".fg"),g=row.querySelector(".g"),r=r
 $("ls").addEventListener("click",function(e){var row=e.target.closest(".row");if(!row)return;var id=row.getAttribute("data-id"),k=row.getAttribute("data-k"),t=find(id),a=e.target.closest("[data-a]"),pi=e.target.closest("[data-pi]");
  if(e.target.closest("[data-ck]")){if(k==="t")toggle(id,row);return}
  if(a&&t){var w=a.getAttribute("data-a");
-  if(w==="pa"){var v=row.querySelector(".pin").value.trim();if(v){(t.pk=t.pk||[]).push({x:v,d:0});save();listRender()}}
+  if(w==="pa"){var v=row.querySelector(".pin").value.trim();if(v){(t.pk=t.pk||[]).push({x:v,d:0,own:1});save();listRender()}}
   else if(w==="st"){t.st=t.st?0:Date.now();save();listRender()}
+  else if(w==="re"){doEst(id)}
   return}
  if(pi){if(t&&t.pk){t.pk[+pi.getAttribute("data-pi")].d=pi.checked?1:0;save()}return}
  if(e.target.closest(".tb")&&k!=="p"&&t){OPEN[id]=!OPEN[id];if(OPEN[id]&&!t.ae)doEst(id);else listRender()}});
@@ -352,7 +370,7 @@ function add(){var x=$("tx").value.trim();if(!x){$("tx").focus();return}
 $("ad").onclick=add;$("tx").onkeydown=function(e){if(e.key==="Enter")add()};
 function st(){$("st").textContent=topic()?"":"Upozornění na telefon nejsou zapnutá. Nastav ntfy téma v ozubeném kole."}
 $("tps").onclick=function(){try{localStorage.setItem(TK,$("tp").value.trim())}catch(e){}S.tasks.forEach(schedule);save();st();closeSheet(0)};
-$("tpt").onclick=function(){$("tpt").textContent=send("Test z plánovače",0)?"Odesláno, mrkni na iPhone":"Nejdřív ulož téma"};
+$("tpt").onclick=function(){if(!topic()){toast("Nejdřív ulož téma.");return}var b=$("tpt");b.textContent="Odesílám…";send("Test z plánovače",0).then(function(ok){b.textContent="Poslat test";if(ok)toast("Test odeslán na ntfy. Podívej se na telefon, appka potvrzení o doručení nevidí.")})};
 $("nt").onclick=function(){try{Notification.requestPermission().then(function(p){$("nt").textContent=p==="granted"?"Zapnuto":"Zablokováno"})}catch(e){$("nt").textContent="Nepodporováno"}};
 function allH(){return(S.hist||[]).concat(S.tasks.filter(function(t){return t.d}).map(hz))}
 function ratio(c){var s=0,e=0,n=0;allH().forEach(function(h){if(h.c===c&&h.a>0&&h.e>0){s+=h.a;e+=h.e;n++}});return n>=3?s/e:0}
@@ -394,19 +412,24 @@ function ics(){var st=new Date().toISOString().replace(/[-:]|\.\d+/g,""),d=today
  $("ms").textContent=S.tasks.length?"Soubor stažen. Otevři ho a potvrď přidání do kalendáře.":"Dnes nemáš žádné úkoly."}
 function ask(){var t=["Tady je můj dnešní plán z plánovače. Zhodnoť ho a řekni, co změnit.","","Dnes:"].concat(sorted().map(function(x){return"- "+x.t+" "+x.x+" ["+CAT[x.c==null?4:x.c][0]+"]"+(x.e?", odhad "+x.e+" min":"")+(x.d?" (hotovo)":"")}),["","Vzorce z dat:"],[].map.call($("ib").querySelectorAll("p"),function(p){return"- "+p.textContent})).join("\n");
  navigator.clipboard.writeText(t).then(function(){$("ms").textContent="Zkopírováno. Vlož to do chatu s Claudem.";open("https://claude.ai/new")},function(){$("ms").textContent="Kopírování se nepovedlo."})}
-function impTxt(txt){var a=JSON.parse(txt);if(!Array.isArray(a))throw 0;var k=0;
+function impTxt(txt){var a=JSON.parse(txt);if(!Array.isArray(a))throw 0;var k=0,u=0;
  a.forEach(function(o){if(!o||!o.x||!/^\d{4}-\d\d-\d\d$/.test(o.date))return;if(!o.ad&&!/^\d{1,2}:\d\d$/.test(o.t))return;if(o.date<today)return;
-  var t=o.ad?"00:00":o.t,dup=S.later.concat(S.tasks).some(function(z){return z.x===o.x&&z.t===t&&(z.date||today)===o.date});if(dup)return;
-  addItem({date:o.date,t:t,x:String(o.x).slice(0,120),c:o.c>=0&&o.c<5?+o.c:4,e:+o.e||0,ad:o.ad?1:0,ev:o.ev||o.ad?1:0});k++});
- save();listRender();refresh();return k}
-$("imb").onclick=function(){try{$("ms").textContent="Vloženo "+impTxt($("im").value)+" položek.";$("im").value=""}catch(e){$("ms").textContent="Tohle není platný seznam."}};
+  var t=o.ad?"00:00":o.t,ad=o.ad?1:0,e=+o.e||0,z=S.later.concat(S.tasks).filter(function(q){return q.x===o.x&&(q.date||today)===o.date})[0];
+  if(z){if(z.t===t&&!!z.ad===!!ad&&(z.e||0)===e)return;z.t=t;z.ad=ad;z.e=e;u++;return}
+  addItem({date:o.date,t:t,x:String(o.x).slice(0,120),c:o.c>=0&&o.c<5?+o.c:4,e:e,ad:ad,ev:o.ev||o.ad?1:0});k++});
+ save();listRender();refresh();return k||u?"Hotovo: nových "+k+(u?", upraveno "+u:"")+".":"Nic nového, vše už v plánu je."}
+$("imb").onclick=function(){try{$("ms").textContent=impTxt($("im").value);$("im").value=""}catch(e){$("ms").textContent="Tohle není platný seznam."}};
 $("flb").onclick=function(){$("fl").click()};
-$("fl").onchange=function(){var f=this.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{$("ms").textContent="Vloženo "+impTxt(r.result)+" položek ze souboru."}catch(e){$("ms").textContent="Soubor není platný."}};r.readAsText(f);this.value=""};
+$("fl").onchange=function(){var f=this.files[0];if(!f)return;var r=new FileReader();act(1);r.onload=function(){act(-1);try{$("ms").textContent=impTxt(r.result)}catch(e){$("ms").textContent="Soubor není platný."}};r.readAsText(f);this.value=""};
 $("in2").onclick=function(){openSheet("i")};$("evb").onclick=life;$("ics").onclick=ics2;$("ask").onclick=ask;
-var NDM="!Nový rok|Karina|Radmila|Diana|Dalimil|Tři králové|Vilma|Čestmír|Vladan|Břetislav|Bohdana|Pravoslav|Edita|Radovan|Alice|Ctirad|Drahoslav|Vladislav|Doubravka|Ilona|Běla|Slavomír|Zdeněk|Milena|Miloš|Zora|Ingrid|Otýlie|Zdislava|Robin|Marika;Hynek|Nela|Blažej|Jarmila|Dobromila|Vanda|Veronika|Milada|Apolena|Mojmír|Božena|Slavěna|Věnceslav|Valentýn|Jiřina|Ljuba|Miloslava|Gizela|Patrik|Oldřich|Lenka|Petr|Svatopluk|Matěj|Liliana|Dorota|Alexandr|Lumír|Horymír;Bedřich|Anežka|Kamil|Stela|Kazimír|Miroslav|Tomáš|Gabriela|Františka|Viktorie|Anděla|Řehoř|Růžena|Rút/Matylda|Ida|Elena/Herbert|Vlastimil|Eduard|Josef|Světlana|Radek|Leona|Ivona|Gabriel|Marián|Emanuel|Dita|Soňa|Taťána|Arnošt|Kvido;Hugo|Erika|Richard|Ivana|Miroslava|Vendula|Heřman/Hermína|Ema|Dušan|Darja|Izabela|Julius|Aleš|Vincenc|Anastázie|Irena|Rudolf|Valérie|Rostislav|Marcela|Alexandra|Evženie|Vojtěch|Jiří|Marek|Oto|Jaroslav|Vlastislav|Robert|Blahoslav;!Svátek práce|Zikmund|Alexej|Květoslav|Klaudie|Radoslav|Stanislav|!Den vítězství|Ctibor|Blažena|Svatava|Pankrác|Servác|Bonifác|Žofie|Přemysl|Aneta|Nataša|Ivo|Zbyšek|Monika|Emil|Vladimír|Jana|Viola|Filip|Valdemar|Vilém|Maxmilián|Ferdinand|Kamila;Laura|Jarmil|Tamara|Dalibor|Dobroslav|Norbert|Iveta/Slavoj|Medard|Stanislava|Gita|Bruno|Antonie|Antonín|Roland|Vít|Zbyněk|Adolf|Milan|Leoš|Květa|Alois|Pavla|Zdeňka|Jan|Ivan|Adriana|Ladislav|Lubomír|Petr a Pavel|Šárka;Jaroslava|Patricie|Radomír|Prokop|Cyril a Metoděj|!Mistr Jan Hus|Bohuslava|Nora|Drahoslava|Libuše/Amálie|Olga|Bořek|Markéta|Karolína|Jindřich|Luboš|Martina|Drahomíra|Čeněk|Ilja|Vítězslav|Magdaléna|Libor|Kristýna|Jakub|Anna|Věroslav|Viktor|Marta|Bořivoj|Ignác;Oskar|Gustav|Miluše|Dominik|Kristián|Oldřiška|Lada|Soběslav|Roman|Vavřinec|Zuzana|Klára|Alena|Alan|Hana|Jáchym|Petra|Helena|Ludvík|Bernard|Johana|Bohuslav|Sandra|Bartoloměj|Radim|Luděk|Otakar|Augustin|Evelína|Vladěna|Pavlína;Linda/Samuel|Adéla|Bronislav|Jindřiška|Boris|Boleslav|Regína|Mariana|Daniela|Irma|Denisa|Marie|Lubor|Radka|Jolana|Ludmila|Naděžda|Kryštof|Zita|Oleg|Matouš|Darina|Berta|Jaromír|Zlata|Andrea|Jonáš|Václav|Michal|Jeroným;Igor|Olivie|Bohumil|František|Eliška|Hanuš|Justýna|Věra|Štefan/Sára|Marina|Andrej|Marcel|Renáta|Agáta|Tereza|Havel|Hedvika|Lukáš|Michaela|Vendelín|Brigita|Sabina|Teodor|Nina|Beáta|Erik|Šarlota/Zoe|!Den vzniku ČSR|Silvie|Tadeáš|Štěpánka;Felix|Tobiáš|Hubert|Karel|Miriam|Liběna|Saskie|Bohumír|Bohdan|Evžen|Martin|Benedikt|Tibor|Sáva|Leopold|Otmar|Mahulena|Romana|Alžběta|Nikola|Albert|Cecílie|Klement|Emílie|Kateřina|Artur|Xenie|René|Zina|Ondřej;Iva|Blanka|Svatoslav|Barbora|Jitka|Mikuláš|Ambrož/Benjamín|Květoslava|Vratislav|Julie|Dana|Simona|Lucie|Lýdie|Radan/Radana|Albína|Daniel|Miloslav|Ester|Dagmar|Natálie|Šimon|Vlasta|!Štědrý den|!1. svátek vánoční|Štěpán|Žaneta|Bohumila|Judita|David|Silvestr".split(";").map(function(m){return m.split("|")}),NM={},GI=["Kniha podle zájmů","Poukaz na zážitek","Něco osobního (fotokniha, ruční výroba)","Dobrá káva nebo čaj","Praktická drobnost ke koníčku"];
-NDM.forEach(function(m,i){m.forEach(function(n,j){if(n.charAt(0)==="!")return;n.split(/\/| a /).forEach(function(x){x=x.toLowerCase();if(!NM[x])NM[x]=pad(i+1)+"-"+pad(j+1)})})});
+var ACT=0;function act(d){ACT=Math.max(0,ACT+d);$("ld").classList.toggle("on",ACT>0)}
+var tt;function toast(m){if(!m)return;var e=$("tst");e.textContent=m;e.classList.add("on");clearTimeout(tt);tt=setTimeout(function(){e.classList.remove("on")},3600)}
+["ms","ks"].forEach(function(i){new MutationObserver(function(){toast($(i).textContent)}).observe($(i),{childList:true,characterData:true,subtree:true})});
+var NDM="!Nový rok|Karina|Radmila/Radomil|Diana|Dalimil|Kašpar/Melichar/Baltazar|Vilma|Čestmír|Vladan|Břetislav|Bohdana|Pravoslav|Edita|Radovan|Alice|Ctirad|Drahoslav|Vladislav/Vladislava|Doubravka|Sebastián/Ilona|Běla|Slavomír/Slavomíra|Zdeněk|Milena|Miloš|Zora|Ingrid|Otýlie|Zdislava|Robin/Erna|Marika;Hynek|Nela|Blažej|Jarmila|Dobromila|Vanda|Veronika|Milada|Apolena|Mojmír|Božena|Slavěna/Slávka|Věnceslav/Věnceslava|Valentýn/Valentýna|Jiřina|Ljuba|Miloslava|Gizela|Patrik|Oldřich|Eleonora/Lenka|Petr|Svatopluk|Matyáš/Matěj|Liliana|Dorota|Alexandr|~Lumír|Horymír;Bedřich/Bedřiška|Anežka|Kamil|Stela|Kazimír|Miroslav|Tomáš|Gabriela/Zoltán|Františka|Viktorie|Anděla|Řehoř|Růžena|Rút/Matylda|Ida|Herbert/Elena|Vlastimil/Vlastimila|Eduard|Josef/Josefa|Světlana|Radek|Leona|Ivona|Gabriel|Marián|Emanuel|Dita|Soňa|Taťána|Ernest/Arnošt|Kvido;Hugo|Erika|Richard|Ivana|Miroslava/Mirka|Vendula/Venuše|Heřman/Hermína|Ema|Dušan|Darja|Izabela|Julius|Aleš|Vincenc|Anastázie|Irena|Rudolf|Valérie|Rostislav|Marcela|Alexandra|Evženie|Vojtěch|Jiří|Marek|Oto|Jaroslav|Vlastislav|Robert|Blahoslav;!Svátek práce|Zikmund|Alexej/Alex|Květoslav|Klaudie|Radoslav|Stanislav|!Den vítězství|Ctibor|Blažena|Svatava|Pankrác|Servác|Bonifác|Sofie/Žofie|Přemysl|Aneta|Nataša|Ivo|Zbyšek|Monika|Emil|Vladimír/Vladimíra|Vanesa/Jana|Viola|Filip|Valdemar|Vilém|Maxim/Maxmilián|Ferdinand|Kamila;Laura|Jarmil|Kevin/Tamara|Dalibor|Dobroslav/Dobroslava|Norbert|Slavoj/Iveta|Medard|Stanislava|Margita/Gita|Bruno|Antonie|Antonín|Herta/Roland|Vít|Zbyněk|Adolf|Milan/Milana|Leoš/Leo|Květuše/Květa|Alois/Aloisie|Pavla|Zdeňka|Jan|Ivan|Adrian/Adriana|Ladislav/Ladislava|Lubomír|Pavel/Petr|Šárka;Jaroslava|Patricie|Radomír/Radomíra|Prokop|Metoděj/Cyril|!Mistr Jan Hus|Bohuslava|Nora|Drahoslava/Drahuše|Amálie/Libuše|Helga/Olga|Bořek|Markéta|Karolína|Jindřich|Luboš|Martina|Drahomír/Drahomíra|Čeněk|Ilja|Vítězslav/Vítězslava|Magda/Magdaléna|Libor|Kristýna|Jakub|Anita/Anna|Věroslav|Alina/Viktor|Marta|Bořivoj|Ignác;Oskar|Gustav|Miluše|Dominik/Dominika|Kristián|Oldřiška|Lada|Soběslav|Roman|Vavřinec|Zuzana|Klára|Alena|Alan|Hana|Jáchym|Petra|Helena/Jelena|Ludvík|Bernard|Johana|Bohuslav|Sandra|Bartoloměj|Radim|Luděk|Otakar|Augustýn|Evelína|Vladěna|Pavlína;Samuel/Linda|Adéla|Bronislav/Bronislava|Jindřiška/Rozálie|Boris|Boleslav|Regína|Mariana|Daniela|Irma|Denis/Denisa|Marie|Lubor|Radka|Jolana|Ludmila/Lidmila|Naďa/Naděžda|Kryštof|Zita|Oleg|Matouš|Darina|Berta|Jaromír/Jaromíra|Zlata/Zlatuše|Andrea|Jonáš|Václav/Václava|Michal/Michael|Jeroným;Igor|Oliver/Olívie|Bohumil|František|Eliška|Hanuš|Justýna|Věra|Štefan/Sára|Marina|Andrej|Marcel|Renáta|Agáta|Tereza/Terezie|Havel/Galina|Hedvika|Lukáš|Michaela/Michala|Vendelín|Brigita|Sabina|Teodor|Nina|Beáta|Erik|Šarlota/Zoe|!Den vzniku ČSR|Sylva/Silvie|Tadeáš|Štěpánka;Felix|Tobiáš|Hubert|Karel/Karla|Miriam|Liběna|Saskie|Bohumír/Bohumíra|Bohdan|Evžen|Martin|Benedikt|Tibor|Sáva|Leopold|Otmar|Mahulena/Gertruda|Romana|Alžběta|Nikola|Albert|Cecílie|Klement|Emílie|Kateřina|Artur|Xenie|René|Zina|Ondřej;Iva|Blanka|Svatoslav|Barbora|Jitka|Mikuláš|Ambrož/Benjamín|Květoslava|Vratislav|Julie|Danuše/Dana|Simona|Lucie|Lýdie|Radan/Radana|Albína|Daniel|Miloslav|Ester|Dagmar|Natálie|Šimon|Vlasta|Eva/Adam|!1. svátek vánoční|Štěpán|Žaneta|Bohumila|Judita|David|Silvestr".split(";").map(function(m){return m.split("|")}),NM={},GI=["Kniha podle zájmů","Poukaz na zážitek","Něco osobního (fotokniha, ruční výroba)","Dobrá káva nebo čaj","Praktická drobnost ke koníčku"];
+NDM.forEach(function(m,i){m.forEach(function(n,j){if(n.charAt(0)==="!")return;n.replace("~","").split(/\/| a /).forEach(function(x){x=x.toLowerCase();if(!NM[x])NM[x]=pad(i+1)+"-"+pad(j+1)})})});
 function nmLine(i){var d=pd(i),n=(NDM[d.getMonth()]||[])[d.getDate()-1]||"",md=pad(d.getMonth()+1)+"-"+pad(d.getDate()),r=[];
- if(n)r.push(n.charAt(0)==="!"?n.slice(1):"Svátek: "+n);
+ if(n.charAt(0)==="~"){var Y=d.getFullYear();n=(Y%4===0&&(Y%100||Y%400===0))?n.slice(1):""}
+ if(n)r.push(n.charAt(0)==="!"?n.slice(1):"Svátek: "+n.split("/").join(", "));
  (S.people||[]).forEach(function(p){if(p.b&&p.b.slice(5)===md)r.push("Narozeniny: "+p.n)});return r.join(" · ")}
 function addItem(o){if(o.date===today){var t=mk(o);S.tasks.push(t);schedule(t)}else{o.id=uid();S.later.push(o)}}
 function gen(){var T=pd(today),Y=T.getFullYear();S.gen=S.gen||{};
@@ -433,8 +456,10 @@ function theme(v){var r=document.documentElement;if(v)r.setAttribute("data-theme
  var m=document.querySelectorAll("meta[name=theme-color]");m[0].content=v==="dark"?"#2A2C30":"#E4E5E7";m[1].content=v==="light"?"#E4E5E7":"#2A2C30"}
 $("thm").addEventListener("click",function(e){var b=e.target.closest("[data-t]");if(b)theme(b.getAttribute("data-t"))});
 var sv="";try{sv=localStorage.getItem("planovac-theme")||""}catch(e){}theme(sv);
-load();gen();selCat(4);st();S.tasks.forEach(schedule);listRender();refresh();
-setInterval(function(){if(!busy&&sh.style.visibility!=="visible")listRender();refresh()},60000);
+load();gen();selCat(4);st();aiStat();S.tasks.forEach(schedule);listRender();refresh();
+function dchk(){if(iso(new Date())!==today)location.reload()}
+document.addEventListener("visibilitychange",function(){if(!document.hidden)dchk()});
+setInterval(function(){dchk();if(!busy&&sh.style.visibility!=="visible")listRender();refresh()},60000);
 })();
 </script>
 </body>
