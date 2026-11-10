@@ -148,11 +148,21 @@ input[type=time],input[type=date],input[type=number]{font-family:var(--mo);font-
 .pr{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--ln);font-size:14px}
 .pr button{color:var(--mu);font-size:20px;padding:0 6px}
 @media(hover:hover){.pill:hover,.go:hover,.pa button:hover{filter:brightness(1.07)}.rnd:hover,.sec:hover,.sec2:hover,.cat:hover,.nv button:hover{border-color:var(--ink)}.seg button:hover{color:var(--ink)}.mc:hover{background:var(--sf)}}
+main{position:relative}
+.lg{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);right:20px;z-index:25}
+.lg svg{width:26px;height:18px;border-radius:3px;display:block;box-shadow:0 0 0 1px var(--ln)}
+#lgb{display:flex;align-items:center;gap:6px;height:36px;padding:0 10px;border:1px solid var(--ln);border-radius:var(--r);background:var(--sf)}
+#lgb::after{content:"▾";font-size:10px;color:var(--mu)}
+.lm{position:absolute;right:0;top:42px;min-width:150px;background:var(--sf);border:1px solid var(--ln);border-radius:var(--r);overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.lm button{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;font-size:14px;text-align:left}
+.lm button+button{border-top:1px solid var(--ln)}
+.lm button.on{color:var(--ac);font-weight:600}
 </style>
 </head>
 <body>
 <div class="nav glass" id="nav">Dnes</div>
 <main>
+<div class="lg" id="lg"><button id="lgb" aria-label="Jazyk" aria-haspopup="true"></button><div class="lm" id="lm" hidden></div></div>
 <div class="head"><div><div class="dt" id="dt"></div><h1 id="h1">Dnes</h1><div class="nm" id="nm"></div></div>
 <div class="ring"><svg viewBox="0 0 56 56"><circle cx="28" cy="28" r="23" fill="none" stroke="var(--ln)" stroke-width="3"/><circle id="rg" cx="28" cy="28" r="23" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linecap="butt" stroke-dasharray="144.5" stroke-dashoffset="144.5"/></svg><b id="rt">0/0</b></div></div>
 <div class="seg" id="sg"><button data-v="d" class="on">Den</button><button data-v="w">Týden</button><button data-v="m">Měsíc</button></div><div class="nv"><button id="pv" data-p aria-label="Zpět">‹</button><b id="nt2"></b><button id="nx" data-p aria-label="Dál">›</button></div><div id="cv"></div>
@@ -213,6 +223,59 @@ input[type=time],input[type=date],input[type=number]{font-family:var(--mo);font-
 (function(){
 var KEY="planovac-v1",TK="planovac-topic",$=function(i){return document.getElementById(i)};
 var CAT=[["Škola","currentColor"],["Sport","currentColor"],["Motorka","currentColor"],["Projekt","currentColor"],["Jiné","currentColor"]];
+var LANG="cs";try{LANG=localStorage.getItem("planovac-lang")||"cs"}catch(e){}
+var D={"Plánovač":["Planer","Planner"],"Jazyk":["Sprache","Language"],"Dnes":["Heute","Today"],"Den":["Tag","Day"],"Týden":["Woche","Week"],"Měsíc":["Monat","Month"],"Zpět":["Zurück","Back"],"Dál":["Weiter","Next"],
+"+ Nový úkol":["+ Neue Aufgabe","+ New task"],"Přehled":["Übersicht","Overview"],"Nastavení":["Einstellungen","Settings"],"Plán":["Plan","Plan"],"Nový úkol":["Neue Aufgabe","New task"],
+"Co tě čeká?":["Was steht an?","What’s coming up?"],"Odhad v minutách (nepovinné)":["Schätzung in Minuten (optional)","Estimate in minutes (optional)"],"Opakovat každý den":["Täglich wiederholen","Repeat every day"],"Přidat":["Hinzufügen","Add"],
+"Smazat":["Löschen","Delete"],"Hotovo":["Erledigt","Done"],"Vrátit":["Rückgängig","Undo"],"Škola":["Schule","School"],"Sport":["Sport","Sport"],"Motorka":["Motorrad","Motorbike"],"Projekt":["Projekt","Project"],"Jiné":["Sonstiges","Other"],
+"upozornění":["Erinnerung","reminder"],"Co vychází z tvých dat":["Was aus deinen Daten hervorgeht","What your data shows"],"Důležití lidé":["Wichtige Personen","Important people"],
+"Jméno (např. Jana)":["Name (z. B. Anna)","Name (e.g. Anna)"],"Narozeniny":["Geburtstag","Birthday"],"Zájmy pro nápady na dárek (nepovinné)":["Interessen für Geschenkideen (optional)","Interests for gift ideas (optional)"],"Přidat osobu":["Person hinzufügen","Add person"],
+"Narozeniny: 14 dní předem přibude úkol Koupit dárek s nápady a v den narozenin celodenní položka. Svátek se doplní z českého kalendáře podle jména.":["Geburtstage: 14 Tage vorher erscheint die Aufgabe „Koupit dárek“ mit Ideen, am Geburtstag ein ganztägiger Eintrag. Der Namenstag wird anhand des Namens aus dem tschechischen Kalender ergänzt.","Birthdays: 14 days before, a “Koupit dárek” (buy a gift) task with ideas appears, plus an all-day entry on the birthday. The name day is filled in from the Czech calendar by name."],
+"Návrhy do volného času":["Vorschläge für die Freizeit","Suggestions for free time"],"Přidat 3 návrhy do dneška":["3 Vorschläge für heute hinzufügen","Add 3 suggestions for today"],"Kalendář a Claude":["Kalender und Claude","Calendar & Claude"],
+"Plán do Apple kalendáře (.ics)":["Plan in den Apple-Kalender (.ics)","Plan to Apple Calendar (.ics)"],"Zkopírovat data a otevřít Clauda":["Daten kopieren und Claude öffnen","Copy data and open Claude"],"Import (rozvrh, plán od Clauda)":["Import (Stundenplan, Plan von Claude)","Import (timetable, plan from Claude)"],
+"Vybrat soubor .json":[".json-Datei wählen","Choose .json file"],"Sem vlož seznam od Clauda":["Liste von Claude hier einfügen","Paste the list from Claude here"],"Vložit do plánu":["In den Plan einfügen","Insert into plan"],
+"Vzhled":["Darstellung","Appearance"],"Systém":["System","System"],"Světlý":["Hell","Light"],"Tmavý":["Dunkel","Dark"],"Přidat návrhy, když je den prázdný":["Vorschläge hinzufügen, wenn der Tag leer ist","Add suggestions when the day is empty"],
+"Nápady na volný čas":["Ideen für die Freizeit","Ideas for free time"],"Jeden nápad na řádek":["Eine Idee pro Zeile","One idea per line"],"Uložit nápady":["Ideen speichern","Save ideas"],"Upozornění a AI":["Benachrichtigungen und KI","Notifications & AI"],
+"Název ntfy tématu":["Name des ntfy-Themas","ntfy topic name"],"Uložit téma":["Thema speichern","Save topic"],"Poslat test":["Test senden","Send test"],"Gemini API klíč (volitelné)":["Gemini-API-Schlüssel (optional)","Gemini API key (optional)"],
+"Uložit klíč":["Schlüssel speichern","Save key"],"Otestovat Gemini klíč":["Gemini-Schlüssel testen","Test Gemini key"],"Upozornění v prohlížeči":["Browser-Benachrichtigungen","Browser notifications"],
+"Klíč vytvoříš na aistudio.google.com. Uloží se jen v tomto zařízení, v kódu na GitHubu není.":["Den Schlüssel erstellst du auf aistudio.google.com. Er wird nur auf diesem Gerät gespeichert, nicht im Code auf GitHub.","Create the key at aistudio.google.com. It is stored only on this device, not in the code on GitHub."],
+"Téma zůstává jen v tomto zařízení, v kódu na GitHubu není. Upozornění z ntfy chodí 15 minut před úkolem i při zavřené appce.":["Das Thema bleibt nur auf diesem Gerät, nicht im Code auf GitHub. ntfy-Erinnerungen kommen 15 Minuten vor der Aufgabe, auch bei geschlossener App.","The topic stays only on this device, not in the code on GitHub. ntfy reminders arrive 15 minutes before a task, even when the app is closed."],
+"Odhad času":["Zeitschätzung","Time estimate"],"Věci s sebou":["Mitzunehmen","Things to bring"],"Nápady na dárek":["Geschenkideen","Gift ideas"],"Přidat věc":["Gegenstand hinzufügen","Add item"],"Přepočítat odhad a seznam":["Schätzung und Liste neu berechnen","Recalculate estimate and list"],"Nové nápady":["Neue Ideen","New ideas"],
+"Spustit měření času":["Zeitmessung starten","Start timing"],"AI přemýšlí…":["KI denkt nach…","AI is thinking…"],"Počítám podle pravidel…":["Ich rechne nach Regeln…","Calculating from rules…"],
+"V kalendáři":["Im Kalender","In calendar"],"celý den":["ganztägig","all day"],"Dnes je volno":["Heute ist frei","Free today"],"Nic v plánu":["Nichts geplant","Nothing planned"],"Nic v plánu.":["Nichts geplant.","Nothing planned."],"Klepni na + a přidej první úkol":["Tippe auf + und füge die erste Aufgabe hinzu","Tap + to add your first task"],
+"Splněno":["Geschafft","Completed"],"Další":["Als Nächstes","Next up"],"Zmeškáno":["Verpasst","Missed"],"právě teď":["genau jetzt","right now"],"Z tohoto dne nic není uloženo.":["Für diesen Tag ist nichts gespeichert.","Nothing saved for this day."],"Volno":["Frei","Free"],
+"Blíží se:":["Bald fällig:","Coming up:"],"Zmeškáno:":["Verpasst:","Missed:"],"Prázdný den:":["Leerer Tag:","Empty day:"],"Moc úkolů:":["Zu viele Aufgaben:","Too many tasks:"],"Večerní přehled:":["Abendübersicht:","Evening review:"],"Neděle:":["Sonntag:","Sunday:"],"Pátek:":["Freitag:","Friday:"],
+"Naplánuj aspoň tři věci.":["Plane mindestens drei Dinge.","Plan at least three things."],"Naplánuj týden: škola, trénink, praxe.":["Plane die Woche: Schule, Training, Praktikum.","Plan the week: school, training, work placement."],"Zkontroluj plán na víkend.":["Prüfe den Plan fürs Wochenende.","Check your plan for the weekend."],
+"Upozornění na telefon nejsou zapnutá. Nastav ntfy téma v ozubeném kole.":["Handy-Erinnerungen sind aus. Lege in den Einstellungen ein ntfy-Thema fest.","Phone reminders are off. Set an ntfy topic in Settings."],
+"Gemini klíč je uložený. Odhady a nápady počítá Gemini.":["Gemini-Schlüssel gespeichert. Schätzungen und Ideen kommen von Gemini.","Gemini key saved. Gemini calculates estimates and ideas."],"Bez klíče: AI neběží, odhady počítají pravidla a tvoje historie.":["Ohne Schlüssel: KI aus, Schätzungen kommen aus Regeln und deinem Verlauf.","No key: AI is off, estimates come from rules and your history."],
+"Klíč je uložený jen v tomto zařízení. AI odhady zapnuty.":["Schlüssel nur auf diesem Gerät gespeichert. KI-Schätzungen aktiv.","Key stored only on this device. AI estimates on."],"Klíč smazán, odhady jedou podle pravidel a historie.":["Schlüssel gelöscht, Schätzungen nach Regeln und Verlauf.","Key deleted, estimates use rules and history."],
+"Hotovo: návrhy do prázdného dne zapnuty.":["Fertig: Vorschläge für leere Tage aktiviert.","Done: suggestions for empty days turned on."],"Hotovo: návrhy do prázdného dne vypnuty.":["Fertig: Vorschläge für leere Tage deaktiviert.","Done: suggestions for empty days turned off."],"Hotovo: nápady uloženy.":["Fertig: Ideen gespeichert.","Done: ideas saved."],
+"Nejdřív ulož téma.":["Speichere zuerst das Thema.","Save the topic first."],"Nejdřív ulož Gemini klíč.":["Speichere zuerst den Gemini-Schlüssel.","Save the Gemini key first."],"Dnes už je pozdě, nic jsem nepřidal.":["Heute ist es zu spät, ich habe nichts hinzugefügt.","It’s too late today, I added nothing."],
+"Zkopírováno. Vlož to do chatu s Claudem.":["Kopiert. Füge es in den Chat mit Claude ein.","Copied. Paste it into the chat with Claude."],"Tohle není platný seznam.":["Das ist keine gültige Liste.","That is not a valid list."],"Soubor není platný.":["Die Datei ist ungültig.","The file is not valid."],"Nic nového, vše už v plánu je.":["Nichts Neues, alles steht schon im Plan.","Nothing new, everything is already in the plan."],
+"Odesílám…":["Sende…","Sending…"],"Testuji…":["Teste…","Testing…"],"Zapnuto":["Aktiviert","Enabled"],"Zablokováno":["Blockiert","Blocked"],"Nepodporováno":["Nicht unterstützt","Not supported"],"AI pracuje…":["KI arbeitet…","AI is working…"],"Odhad od Gemini hotový.":["Gemini-Schätzung fertig.","Gemini estimate ready."],"Gemini selhalo, použil jsem pravidla.":["Gemini ist fehlgeschlagen, ich habe die Regeln genutzt.","Gemini failed, I used the rules."]};
+var R=[[/^Všech (\d+) úkolů máš za sebou$/,"Alle $1 Aufgaben erledigt","All $1 tasks done"],[/^(\d+) zbývá$/,"$1 offen","$1 left"],[/^za (\d+) min: (.*)$/,"in $1 Min.: $2","in $1 min: $2"],[/^od (\d+:\d\d): (.*)$/,"seit $1: $2","since $1: $2"],
+[/^Máš jich (\d+)\. Co musí být opravdu dnes\?$/,"Du hast $1. Was muss wirklich heute sein?","You have $1. What really has to happen today?"],[/^(\d+) nedokončeno\. Přesuň je, nebo škrtni\.$/,"$1 unerledigt. Verschiebe oder streiche sie.","$1 unfinished. Move or cross them out."],
+[/^\+ (\d+) dalších$/,"+ $1 weitere","+ $1 more"],[/^Dnes má svátek (.*)$/,"Heute hat Namenstag: $1","Name day today: $1"],[/^Svátek má (.*)$/,"Namenstag: $1","Name day: $1"],
+[/^Hotovo: AI přidala návrhy \((\d+)\)\.$/,"Fertig: KI hat $1 Vorschläge hinzugefügt.","Done: AI added $1 suggestions."],[/^Hotovo: přidal jsem návrhy \((\d+)\)\.$/,"Fertig: $1 Vorschläge hinzugefügt.","Done: added $1 suggestions."],[/^Staženo (\d+) položek\. Otevři soubor a potvrď přidání do kalendáře\.$/,"$1 Einträge geladen. Öffne die Datei und bestätige das Hinzufügen zum Kalender.","$1 items downloaded. Open the file and confirm adding them to your calendar."]];
+var SB=[[" · návrh"," · Vorschlag"," · suggestion"],[" · běží"," · läuft"," · running"],["Narozeniny: ","Geburtstag: ","Birthday: "]];
+var FL={cs:'<svg viewBox="0 0 24 16" preserveAspectRatio="none"><rect width="24" height="8" fill="#fff"/><rect y="8" width="24" height="8" fill="#D7141A"/><path d="M0 0l12 8L0 16z" fill="#11457E"/></svg>',de:'<svg viewBox="0 0 24 16" preserveAspectRatio="none"><rect width="24" height="5.4" fill="#000"/><rect y="5.3" width="24" height="5.4" fill="#D00"/><rect y="10.6" width="24" height="5.4" fill="#FFCE00"/></svg>',en:'<svg viewBox="0 0 60 40" preserveAspectRatio="none"><rect width="60" height="40" fill="#012169"/><path d="M0 0l60 40M60 0L0 40" stroke="#fff" stroke-width="8"/><path d="M0 0l60 40M60 0L0 40" stroke="#C8102E" stroke-width="3"/><path d="M30 0v40M0 20h60" stroke="#fff" stroke-width="12"/><path d="M30 0v40M0 20h60" stroke="#C8102E" stroke-width="7"/></svg>'};
+var LN={cs:"Čeština",de:"Deutsch",en:"English"},CSN=CAT.map(function(c){return c[0]});
+function LOC(){return{cs:"cs-CZ",de:"de-DE",en:"en-GB"}[LANG]}
+function LAf(){return{cs:["za ","","před ",""],de:["in ","","vor ",""],en:["in ",""," ago"," ago"]}[LANG]||["za ","","před ",""]}
+function tr(s){var i=LANG==="de"?0:LANG==="en"?1:-1;if(i<0)return s;var k=s.trim(),v=null,j;if(Object.prototype.hasOwnProperty.call(D,k))v=D[k][i];
+ else for(j=0;j<R.length;j++)if(R[j][0].test(k)){v=k.replace(R[j][0],R[j][i+1]);break}
+ if(v!=null)s=s.replace(k,function(){return v});for(j=0;j<SB.length;j++)s=s.split(SB[j][0]).join(SB[j][i+1]);return s}
+function tn(n){var p=n.parentNode;if(!p||(p.closest&&p.closest(".tx,textarea,script,style")))return;var v=n.nodeValue,o=n._t===v&&n._o!=null?n._o:v;if(!o.trim())return;var t=tr(o);n._o=o;n._t=t;if(t!==v)n.nodeValue=t}
+function ta(e){["placeholder","aria-label"].forEach(function(a){if(!e.hasAttribute(a))return;var v=e.getAttribute(a),k="_"+a,o=e[k]&&e[k][1]===v?e[k][0]:v,t=tr(o);e[k]=[o,t];if(t!==v)e.setAttribute(a,t)})}
+function walk(r){if(r.nodeType===3){tn(r);return}if(r.nodeType!==1)return;ta(r);var w=document.createTreeWalker(r,5),n;while(n=w.nextNode()){n.nodeType===3?tn(n):ta(n)}}
+new MutationObserver(function(ms){ms.forEach(function(m){if(m.type==="characterData")tn(m.target);else[].forEach.call(m.addedNodes,walk)})}).observe(document.body,{childList:true,characterData:true,subtree:true});
+CAT.forEach(function(c,i){c[0]=tr(CSN[i])});
+function flag(){$("lgb").innerHTML=FL[LANG];$("lm").innerHTML=["cs","de","en"].map(function(k){return'<button data-l="'+k+'"'+(k===LANG?' class="on"':"")+'>'+FL[k]+'<span>'+LN[k]+'</span></button>'}).join("");
+ document.documentElement.lang=LANG;document.title=tr("Plánovač");document.querySelector("meta[name=apple-mobile-web-app-title]").content=document.title}
+function setLang(l){LANG=l;try{localStorage.setItem("planovac-lang",l)}catch(e){}CAT.forEach(function(c,i){c[0]=tr(CSN[i])});[].forEach.call($("cats").children,function(b,i){b.lastChild.nodeValue=CAT[i][0]});flag();walk(document.body);listRender();refresh();aiStat();st();hint()}
+$("lgb").onclick=function(e){e.stopPropagation();$("lm").hidden=!$("lm").hidden};
+$("lm").onclick=function(e){var b=e.target.closest("[data-l]");if(b){$("lm").hidden=true;setLang(b.getAttribute("data-l"))}};
+document.addEventListener("click",function(e){if(!e.target.closest("#lg"))$("lm").hidden=true});
 var RM=matchMedia("(prefers-reduced-motion:reduce)").matches;
 function Sp(v,ap){this.v=v;this.vel=0;this.ap=ap;this.raf=0}
 Sp.prototype.stop=function(){cancelAnimationFrame(this.raf);this.raf=0};
@@ -275,7 +338,7 @@ function refresh(){
  if(!T.length&&EV0.length){hl="V kalendáři";hb=EV0[0].ad?"celý den":EV0[0].t;hs=EV0.map(function(x){return x.x}).join(" · ")}
  else if(!T.length){hl="Dnes je volno";hb="Nic v plánu";hs="Klepni na + a přidej první úkol"}
  else if(!open.length){hl="Splněno";hb="Hotovo";hs="Všech "+T.length+" úkolů máš za sebou"}
- else{var x=open[0],d=mins(x.t)-n;hl=d<-15?"Zmeškáno":"Další";hb=d>0?"za "+fmt(d):(d>-1?"právě teď":"před "+fmt(d));hs=x.t+" · "+x.x}
+ else{var x=open[0],d=mins(x.t)-n;hl=d<-15?"Zmeškáno":"Další";var LA=LAf();hb=d>0?LA[0]+fmt(d)+LA[1]:(d>-1?"právě teď":LA[2]+fmt(d)+LA[3]);hs=x.t+" · "+x.x}
  $("hl").textContent=hl;$("hb").innerHTML=hb.replace(/\d+/g,'<span class="n">$&</span>');$("hs").textContent=hs;
  var a=[],late=open.filter(function(t){return mins(t.t)<n-15}),soon=open.filter(function(t){var d=mins(t.t)-n;return d>=0&&d<=30}),wd=new Date().getDay();
  soon.forEach(function(t){a.push(["#ff9f0a","Blíží se","za "+(mins(t.t)-n)+" min: "+t.x]);notify("s"+t.id,"Za "+(mins(t.t)-n)+" min: "+t.x)});
@@ -306,14 +369,14 @@ function listRender(){var L=$("ls"),T=dayItems(sel),k=sel===today?"t":sel>today?
  else{L.innerHTML=T.map(function(t){var c=CAT[t.c==null?4:t.c],ti=t.ad?"celý den":(t.t||hh(t.p)),late=k==="t"&&!t.d&&mins(ti)<n-15;
   return'<div class="row'+(t.d?" done":"")+(late?" late":"")+'" data-id="'+(t.id||"")+'" data-k="'+k+'"><div class="bg g">'+(t.d?"Vrátit":"Hotovo")+'</div><div class="bg r">Smazat</div><div class="fg"><button class="ck" data-p data-ck aria-label="Hotovo" style="--c:'+c[1]+'"></button><div class="tb"><div class="tx">'+esc(t.x)+'</div><div class="mt"><span class="t">'+ti+'</span> · '+c[0]+(t.e?" · "+t.e+" min":"")+(t.st&&!t.d?" · běží":"")+(t.s&&!t.d?' · <span class="gk">upozornění</span>':"")+(t.sg?" · návrh":"")+'</div></div></div>'+(OPEN[t.id]&&k!=="p"?det(t,k):"")+'</div>'}).join("");
   if(k!=="p")Array.prototype.forEach.call(L.querySelectorAll(".row"),wire)}
- var d=pd(sel);$("dt").textContent=d.toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"long"});
- var w=d.toLocaleDateString("cs-CZ",{weekday:"long"});$("h1").textContent=sel===today?"Dnes":w.charAt(0).toUpperCase()+w.slice(1);$("nm").textContent=nmLine(sel);cal()}
+ var d=pd(sel);$("dt").textContent=d.toLocaleDateString(LOC(),{weekday:"long",day:"numeric",month:"long"});
+ var w=d.toLocaleDateString(LOC(),{weekday:"long"});$("h1").textContent=sel===today?"Dnes":w.charAt(0).toUpperCase()+w.slice(1);$("nm").textContent=nmLine(sel);cal()}
 function cal(){var c=$("cv"),h="",d=pd(sel),lab=$("dt").textContent;
  if(V==="w"){var s=new Date(d);s.setDate(s.getDate()-((s.getDay()+6)%7));var e=new Date(s);e.setDate(e.getDate()+6);lab=s.getDate()+". "+(s.getMonth()+1)+". – "+e.getDate()+". "+(e.getMonth()+1)+".";
   for(var i=0;i<7;i++){var x=new Date(s);x.setDate(s.getDate()+i);var z=iso(x),a=dayItems(z);
-   h+='<div class="wd'+(z===today?" tdy":"")+'" data-d="'+z+'"><div class="wn"><b>'+x.toLocaleDateString("cs-CZ",{weekday:"short"})+'</b><span>'+x.getDate()+'</span></div><div class="wl">'+(a.length?a.slice(0,4).map(function(o){return'<div><i style="background:'+CAT[o.c==null?4:o.c][1]+'"></i>'+(o.ad?"":(o.t||hh(o.p))+" ")+esc(o.x)+'</div>'}).join("")+(a.length>4?'<div class="mu">+ '+(a.length-4)+' dalších</div>':""):'<div class="mu">Volno</div>')+'</div></div>'}}
- else if(V==="m"){lab=d.toLocaleDateString("cs-CZ",{month:"long",year:"numeric"});var f=new Date(d.getFullYear(),d.getMonth(),1),off=(f.getDay()+6)%7,dim=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
-  h='<div class="mg">'+"PoÚtStČtPáSoNe".match(/../g).map(function(x){return"<small>"+x+"</small>"}).join("");
+   h+='<div class="wd'+(z===today?" tdy":"")+'" data-d="'+z+'"><div class="wn"><b>'+x.toLocaleDateString(LOC(),{weekday:"short"})+'</b><span>'+x.getDate()+'</span></div><div class="wl">'+(a.length?a.slice(0,4).map(function(o){return'<div><i style="background:'+CAT[o.c==null?4:o.c][1]+'"></i>'+(o.ad?"":(o.t||hh(o.p))+" ")+esc(o.x)+'</div>'}).join("")+(a.length>4?'<div class="mu">+ '+(a.length-4)+' dalších</div>':""):'<div class="mu">Volno</div>')+'</div></div>'}}
+ else if(V==="m"){lab=d.toLocaleDateString(LOC(),{month:"long",year:"numeric"});var f=new Date(d.getFullYear(),d.getMonth(),1),off=(f.getDay()+6)%7,dim=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+  h='<div class="mg">'+({cs:"PoÚtStČtPáSoNe",de:"MoDiMiDoFrSaSo",en:"MoTuWeThFrSaSu"})[LANG].match(/../g).map(function(x){return"<small>"+x+"</small>"}).join("");
   for(var j=0;j<off;j++)h+="<span></span>";
   for(var q=1;q<=dim;q++){var z2=iso(new Date(d.getFullYear(),d.getMonth(),q)),cs={};dayItems(z2).forEach(function(o){cs[o.c==null?4:o.c]=1});
    h+='<button class="mc'+(z2===today?" tdy":"")+(z2===sel?" sel":"")+'" data-d="'+z2+'"><b>'+q+'</b><div>'+Object.keys(cs).slice(0,3).map(function(y){return'<i style="background:'+CAT[y][1]+'"></i>'}).join("")+'</div></button>'}
@@ -485,14 +548,14 @@ $("au").onchange=function(){try{localStorage.setItem("planovac-auto",this.checke
 $("ides").onclick=function(){try{localStorage.setItem("planovac-ideas",$("ide").value)}catch(e){}toast("Hotovo: nápady uloženy.","ok")};
 $("sgb").onclick=function(){suggest(3)};
 addEventListener("scroll",function(){$("nav").classList.toggle("on",scrollY>44)},{passive:true});
-$("dt").textContent=new Date().toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"long"});
+$("dt").textContent=new Date().toLocaleDateString(LOC(),{weekday:"long",day:"numeric",month:"long"});
 function theme(v){var r=document.documentElement;if(v)r.setAttribute("data-theme",v);else r.removeAttribute("data-theme");
  try{if(v)localStorage.setItem("planovac-theme",v);else localStorage.removeItem("planovac-theme")}catch(e){}
  Array.prototype.forEach.call($("thm").children,function(b){b.classList.toggle("on",b.getAttribute("data-t")===(v||""))});
  var m=document.querySelectorAll("meta[name=theme-color]");m[0].content=v==="dark"?"#2A2C30":"#E4E5E7";m[1].content=v==="light"?"#E4E5E7":"#2A2C30"}
 $("thm").addEventListener("click",function(e){var b=e.target.closest("[data-t]");if(b)theme(b.getAttribute("data-t"))});
 var sv="";try{sv=localStorage.getItem("planovac-theme")||""}catch(e){}theme(sv);
-load();gen();selCat(4);st();aiStat();S.tasks.forEach(schedule);listRender();refresh();autoFill();
+load();gen();selCat(4);st();aiStat();S.tasks.forEach(schedule);listRender();refresh();autoFill();flag();walk(document.body);
 function dchk(){if(iso(new Date())!==today)location.reload()}
 document.addEventListener("visibilitychange",function(){if(!document.hidden)dchk()});
 setInterval(function(){dchk();if(!busy&&sh.style.visibility!=="visible")listRender();refresh()},60000);
